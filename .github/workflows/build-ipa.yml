@@ -28,6 +28,9 @@ jobs:
           swift -version
           xcode-select -p
 
+      - name: Install xcodeproj gem
+        run: gem install xcodeproj
+
       - name: Setup Workspace with Local SPM Packages
         run: |
           cd ios-there-music
