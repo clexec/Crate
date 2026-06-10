@@ -28,28 +28,45 @@ jobs:
           swift -version
           xcode-select -p
 
-      - name: Verify Package Structure
-        run: |
-          echo "=== Repository structure ==="
-          find . -name "Package.swift" -maxdepth 5
-          echo "=== Xcode project ==="
-          find . -name "*.xcodeproj" -maxdepth 3
-          echo "=== Packages directory ==="
-          ls -la ios-there-music/Packages/ 2>/dev/null || echo "No Packages dir at ios-there-music/"
-          ls -la Packages/ 2>/dev/null || echo "No Packages dir at root"
-          echo "=== YMAPI Package.swift ==="
-          cat ios-there-music/Packages/YM-API/Package.swift 2>/dev/null || echo "NOT FOUND"
-          echo "=== YouTubeKit Package.swift ==="
-          cat ios-there-music/Packages/YouTubeKit/Package.swift 2>/dev/null || echo "NOT FOUND"
-
-      - name: Resolve Package Dependencies
+      - name: Inline Package Sources into Monk Target
         run: |
           cd ios-there-music
-          xcodebuild -resolvePackageDependencies \
-            -project Monk.xcodeproj \
-            -scheme Monk \
-            -clonedSourcePackagesDirPath SourcePackages \
-            2>&1 | tail -20 || true
+          
+          # Copy YMAPI sources into Monk/Services/YMAPI/
+          mkdir -p Monk/Services/YMAPI
+          cp Packages/YM-API/Sources/YMAPI/*.swift Monk/Services/YMAPI/ 2>/dev/null || true
+          # YMAPI has subdirectories
+          for dir in Packages/YM-API/Sources/YMAPI/*/; do
+            subdir=$(basename "$dir")
+            mkdir -p "Monk/Services/YMAPI/$subdir"
+            cp "$dir"*.swift "Monk/Services/YMAPI/$subdir/" 2>/dev/null || true
+          done
+          
+          # Copy YouTubeKit sources into Monk/Services/YouTubeKit/
+          mkdir -p Monk/Services/YouTubeKit
+          cp Packages/YouTubeKit/Sources/YouTubeKit/*.swift Monk/Services/YouTubeKit/ 2>/dev/null || true
+          # YouTubeKit has subdirectories
+          for dir in Packages/YouTubeKit/Sources/YouTubeKit/*/; do
+            subdir=$(basename "$dir")
+            mkdir -p "Monk/Services/YouTubeKit/$subdir"
+            cp "$dir"*.swift "Monk/Services/YouTubeKit/$subdir/" 2>/dev/null || true
+          done
+          # Copy JavaScript resource bundle
+          mkdir -p Monk/Services/YouTubeKit/JavaScript
+          cp Packages/YouTubeKit/Sources/YouTubeKit/JavaScript/*.js Monk/Services/YouTubeKit/JavaScript/ 2>/dev/null || true
+          
+          echo "=== Inlined sources ==="
+          find Monk/Services/YMAPI -name "*.swift" | wc -l | xargs echo "YMAPI Swift files:"
+          find Monk/Services/YouTubeKit -name "*.swift" | wc -l | xargs echo "YouTubeKit Swift files:"
+          
+          # Remove 'import YMAPI' and 'import YouTubeKit' from all source files
+          # since they're now compiled in the same target
+          find Monk -name "*.swift" -exec sed -i '' 's/^import YMAPI$/\/\/ import YMAPI (inlined)/g' {} \;
+          find Monk -name "*.swift" -exec sed -i '' 's/^import YouTubeKit$/\/\/ import YouTubeKit (inlined)/g' {} \;
+          
+          echo "=== Verifying no remaining imports ==="
+          grep -r "^import YMAPI$" Monk/ || echo "No YMAPI imports remaining"
+          grep -r "^import YouTubeKit$" Monk/ || echo "No YouTubeKit imports remaining"
 
       - name: Build Archive
         run: |
@@ -69,7 +86,6 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             IPHONEOS_DEPLOYMENT_TARGET=26.0 \
             SWIFT_VERSION=5.0 \
-            -clonedSourcePackagesDirPath SourcePackages \
             2>&1 | tee ../build/xcodebuild-archive.log || true
           ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || { echo "ERROR: Archive not found"; exit 1; }
 
