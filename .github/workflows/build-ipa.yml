@@ -80,10 +80,12 @@ jobs:
           mkdir -p ../build
           
           # Build using swift build with iOS SDK
+          # Use Swift 5 concurrency mode (non-strict) since YMAPI/YouTubeKit aren't Sendable-ready
           swift build -c release \
             --product MonkApp \
             -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
             -Xswiftc -target -Xswiftc arm64-apple-ios26.0 \
+            -Xswiftc -swift-version -Xswiftc 5 \
             2>&1 | tee ../build/spm-build.log
             
           # Check build result
