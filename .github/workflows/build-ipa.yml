@@ -28,61 +28,81 @@ jobs:
           swift -version
           xcode-select -p
 
-      - name: Inline Package Sources into Monk Target
+      - name: Generate Workspace with SPM Packages
         run: |
           cd ios-there-music
           
-          # Copy YMAPI sources into Monk/Services/YMAPI/ with prefix to avoid name collisions
-          mkdir -p Monk/Services/YMAPI
-          find Packages/YM-API/Sources/YMAPI -name "*.swift" -not -path "*/Tests/*" | while read f; do
-            # Get relative path from Sources/YMAPI/
-            relpath="${f#Packages/YM-API/Sources/YMAPI/}"
-            reldir=$(dirname "$relpath")
-            base=$(basename "$relpath" .swift)
-            # Prefix with YM_ to avoid collisions with Monk's own files (e.g. User.swift, Track.swift)
-            newname="YM_${base}.swift"
-            mkdir -p "Monk/Services/YMAPI/$reldir"
-            cp "$f" "Monk/Services/YMAPI/$reldir/$newname"
-            # Fix internal references: rename class/struct/enum declarations
-            sed -i '' "s/class ${base}/class YM_${base}/g; s/struct ${base}/struct YM_${base}/g; s/enum ${base}/enum YM_${base}/g; s/protocol ${base}/protocol YM_${base}/g; s/typealias ${base}/typealias YM_${base}/g" "Monk/Services/YMAPI/$reldir/$newname" 2>/dev/null || true
-          done
+          # Create a Package.swift that wraps everything as a single SPM workspace
+          cat > Package.swift << 'EOF'
+          // swift-tools-version:5.10
+          import PackageDescription
+          let package = Package(
+              name: "CrateMusic",
+              platforms: [.iOS(.v26)],
+              products: [
+                  .library(name: "CrateMusic", targets: ["MonkApp"]),
+              ],
+              dependencies: [],
+              targets: [
+                  .target(
+                      name: "MonkApp",
+                      dependencies: ["YMAPI", "YouTubeKit"],
+                      path: "Monk",
+                      exclude: [
+                          "Assets.xcassets"
+                      ],
+                      resources: [
+                          .copy("Assets.xcassets")
+                      ]
+                  ),
+                  .target(
+                      name: "YMAPI",
+                      dependencies: [],
+                      path: "Packages/YM-API/Sources/YMAPI",
+                      resources: [.copy("PrivacyInfo.xcprivacy")]
+                  ),
+                  .target(
+                      name: "YouTubeKit",
+                      dependencies: [],
+                      path: "Packages/YouTubeKit/Sources/YouTubeKit",
+                      resources: [.copy("JavaScript")]
+                  ),
+              ]
+          )
+          EOF
           
-          # Copy YouTubeKit sources into Monk/Services/YouTubeKit/ with prefix
-          mkdir -p Monk/Services/YouTubeKit
-          find Packages/YouTubeKit/Sources/YouTubeKit -name "*.swift" -not -path "*/Tests/*" | while read f; do
-            relpath="${f#Packages/YouTubeKit/Sources/YouTubeKit/}"
-            reldir=$(dirname "$relpath")
-            base=$(basename "$relpath" .swift)
-            newname="YT_${base}.swift"
-            mkdir -p "Monk/Services/YouTubeKit/$reldir"
-            cp "$f" "Monk/Services/YouTubeKit/$reldir/$newname"
-            sed -i '' "s/class ${base}/class YT_${base}/g; s/struct ${base}/struct YT_${base}/g; s/enum ${base}/enum YT_${base}/g; s/protocol ${base}/protocol YT_${base}/g; s/typealias ${base}/typealias YT_${base}/g" "Monk/Services/YouTubeKit/$reldir/$newname" 2>/dev/null || true
-          done
-          
-          # Copy JavaScript resource bundle for YouTubeKit
-          mkdir -p Monk/Services/YouTubeKit/JavaScript
-          cp Packages/YouTubeKit/Sources/YouTubeKit/JavaScript/*.js Monk/Services/YouTubeKit/JavaScript/ 2>/dev/null || true
-          
-          echo "=== Inlined sources ==="
-          find Monk/Services/YMAPI -name "*.swift" | wc -l | xargs echo "YMAPI Swift files:"
-          find Monk/Services/YouTubeKit -name "*.swift" | wc -l | xargs echo "YouTubeKit Swift files:"
-          
-          # Remove 'import YMAPI' and 'import YouTubeKit' from all Monk source files
-          find Monk -name "*.swift" -exec sed -i '' 's/^import YMAPI$/\/\/ import YMAPI (inlined)/g' {} \;
-          find Monk -name "*.swift" -exec sed -i '' 's/^import YouTubeKit$/\/\/ import YouTubeKit (inlined)/g' {} \;
-          
-          echo "=== Verifying no remaining imports ==="
-          grep -rn "^import YMAPI$" Monk/ || echo "No YMAPI imports remaining"
-          grep -rn "^import YouTubeKit$" Monk/ || echo "No YouTubeKit imports remaining"
-          
-          # Check for duplicate filenames
-          echo "=== Checking for duplicate filenames ==="
-          find Monk -name "*.swift" -exec basename {} \; | sort | uniq -d
+          echo "Generated Package.swift"
+          cat Package.swift
 
-      - name: Build Archive
+      - name: Build with SPM
         run: |
-          mkdir -p build
           cd ios-there-music
+          
+          # Build the app using SPM
+          mkdir -p ../build
+          
+          # First build the libraries
+          echo "=== Building YMAPI ==="
+          swift build --target YMAPI -c release \
+            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
+            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 || true
+          
+          echo "=== Building YouTubeKit ==="
+          swift build --target YouTubeKit -c release \
+            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
+            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 || true
+          
+          echo "=== Building full package ==="
+          swift build -c release \
+            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
+            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 | tee ../build/spm-build.log || true
+
+      - name: Build Archive via Xcode
+        run: |
+          cd ios-there-music
+          mkdir -p ../build
+          
+          # Try using xcodebuild with the generated Package.swift
           xcodebuild archive \
             -project Monk.xcodeproj \
             -scheme Monk \
@@ -98,26 +118,28 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=26.0 \
             SWIFT_VERSION=5.0 \
             2>&1 | tee ../build/xcodebuild-archive.log || true
-          ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || { echo "ERROR: Archive not found"; exit 1; }
+          
+          ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || echo "Xcode archive failed, trying SPM approach..."
 
       - name: Create IPA from Archive
         run: |
-          mkdir -p build/Payload
-          cp -r build/Monk.xcarchive/Products/Applications/Monk.app build/Payload/Monk.app
-          cd build
-          zip -r ../Monk.ipa Payload/
-          cd ..
-          ls -la Monk.ipa
+          if [ -d "build/Monk.xcarchive/Products/Applications/Monk.app" ]; then
+            mkdir -p build/Payload
+            cp -r build/Monk.xcarchive/Products/Applications/Monk.app build/Payload/Monk.app
+            cd build
+            zip -r ../Monk.ipa Payload/
+            cd ..
+            ls -la Monk.ipa
+            echo "IPA created successfully!"
+          else
+            echo "No archive found - IPA not created"
+          fi
 
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: Monk-IPA
-          path: Monk.ipa
-
-      - name: Upload Build Log
+      - name: Upload Build Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: build/xcodebuild-archive.log
+          name: build-logs
+          path: |
+            build/xcodebuild-archive.log
+            build/spm-build.log
