@@ -1,5 +1,4 @@
 import Foundation
-import YMAPI
 
 /// Нативный источник Яндекс Музыки на базе YM-API.
 /// Полное воспроизведение требует активной подписки Яндекс Плюс.
@@ -8,7 +7,7 @@ final class YandexMusicService: MusicAPIServiceProtocol {
     // MARK: - RecommendationServiceProtocol
 
     /// Кэш оригинальных YM-треков по sourceID — нужен, чтобы получить ссылку на воспроизведение.
-    private var trackCache: [String: YMAPI.Track] = [:]
+    private var trackCache: [String: YMTrack] = [:]
 
     /// Инициализирует общий YMClient токеном из APIConfig.
     func configure() {
@@ -31,7 +30,7 @@ final class YandexMusicService: MusicAPIServiceProtocol {
 
     func search(term: String, limit: Int = 30) async throws -> [Track] {
         guard let client = YMClient.shared else { return [] }
-        let ymTracks: [YMAPI.Track] = try await withCheckedThrowingContinuation { cont in
+        let ymTracks: [YMTrack] = try await withCheckedThrowingContinuation { cont in
             client.search(text: term, noCorrect: false, type: .all, page: 0, includeBestPlaylists: false) { result in
                 switch result {
                 case .success(let search):
@@ -199,13 +198,13 @@ final class YandexMusicService: MusicAPIServiceProtocol {
                 if let chartItem = entity.data as? ChartItem, let ymTrack = chartItem.track {
                     self.trackCache[ymTrack.trackId] = ymTrack
                     blockTracks.append(Track(ym: ymTrack))
-                } else if let playlist = entity.data as? YMAPI.Playlist {
+                } else if let playlist = entity.data as? YMPlaylist {
                     let tracks = playlist.tracks?.compactMap { $0 }.map { ym -> Track in
                         self.trackCache[ym.trackId] = ym
                         return Track(ym: ym)
                     } ?? []
                     blockTracks.append(contentsOf: tracks)
-                } else if let album = entity.data as? YMAPI.Album {
+                } else if let album = entity.data as? YMAlbum {
                     // Альбомы — пропускаем, треков внутри может не быть
                     break
                 }
@@ -266,7 +265,7 @@ final class YandexMusicService: MusicAPIServiceProtocol {
         var tracks: [Track] = []
         for block in landing.blocks where block.type == "new-releases" {
             for entity in block.entities {
-                if let album = entity.data as? YMAPI.Album,
+                if let album = entity.data as? YMAlbum,
                    let albumTracks = album.trackIds?.prefix(3) {
                     // Альбомы содержат только ID треков — делаем поиск по названию альбома
                     break
@@ -324,7 +323,7 @@ final class YandexMusicService: MusicAPIServiceProtocol {
 // MARK: - Track Mapping
 
 private extension Track {
-    init(ym: YMAPI.Track) {
+    init(ym: YMTrack) {
         let artists = ym.artists.compactMap { $0.name }.joined(separator: ", ")
         let album = ym.albums.first?.title ?? "Single"
         let cover = ym.coverUri.map { "https://" + $0.replacingOccurrences(of: "%%", with: "600x600") }

@@ -1,5 +1,4 @@
 import Foundation
-import YouTubeKit
 
 /// Нативный источник YouTube на базе YouTubeKit.
 /// Поиск и воспроизведение не требуют API-ключа.
