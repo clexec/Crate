@@ -1,0 +1,14 @@
+{
+  "apps": [
+    {
+      "name": "Mono",
+      "path": "ios-there-music",
+      "framework": "swift",
+      "settings": {
+        "displayName": "Monk",
+        "iosBundleId": "app.mono.io"
+      }
+    }
+  ],
+  "$schema": "https://rork.com/schema/rork.json"
+}

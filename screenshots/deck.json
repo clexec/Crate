@@ -1,0 +1,58 @@
+{
+  "theme": {
+    "style": "Velvety espresso-dark world built from deep roasted browns, smoldering amber, and near-black shadows. Cinematic warmth radiates from within like candlelight trapped in glass — moody, intimate, and premium. Textures feel like brushed leather, polished obsidian, and translucent smoked resin. Every slide carries the sense of a private listening room where the music is everything.",
+    "headlineFont": "font-family: 'Plus Jakarta Sans', sans-serif; @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&display=swap')",
+    "headlineFontSize": 128,
+    "mockupIds": {
+      "iphone": "deep-blue",
+      "ipad": "space-gray"
+    },
+    "palette": {
+      "primary": "#140C08",
+      "secondary": "#6B3320",
+      "accent": "#C8782A"
+    }
+  },
+  "slides": [
+    {
+      "label": "Authentication",
+      "backgroundPrompt": "Abstract digital art featuring sweeping cascades of liquid silk in deep espresso brown and burnished sienna flowing diagonally from the lower-left, with thin luminous filaments of warm amber gold tracing their edges and catching dramatic rim lighting from below, the upper 30% dissolving into near-black shadow for clean text legibility, subtle fine grain texture layered over smooth volumetric depth, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/ef329d31-e694-4d64-91d0-b06e29db2459.png"
+    },
+    {
+      "label": "Home Feed",
+      "backgroundPrompt": "3D rendered scene of vast layered planes of smoked caramel glass suspended at gentle horizontal angles, each panel softly glowing with warm amber and toasted umber light bleeding from a diffused source behind the lowest layer, long horizontal gradients washing the mid-section in molten honey while the upper region remains deep charcoal brown and calm, subtle frosted surface texture on each plane, soft depth-of-field blur on outer edges, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/7f5798ee-81a5-42d6-be7c-3f3926c78dde.png"
+    },
+    {
+      "label": "Search",
+      "backgroundPrompt": "Abstract digital art with an explosive radial scatter of frosted geometric shards in dark roasted brown and translucent smoked bronze, catching thin silver-amber rim light along sharp edges, emerging from a central dark void of near-black and fanning outward toward the lower frame, dramatic high-contrast lighting from the right casting long angular shadows, the upper 30% kept clear and very dark for text overlay, fine particle dust catching warm amber light in the negative space, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/6e51750d-a892-4b25-826f-c312f9b7b84e.png"
+    },
+    {
+      "label": "Full Player",
+      "backgroundPrompt": "Cinematic 3D rendered scene of a single colossal sphere of molten warm gold and smoldering amber light suspended in a deep black void, radiating a slow volumetric bloom that bleeds into rich burnt sienna at the midfield and fades to absolute darkness at the top, dramatic single-source lighting from below creating a godray halo effect, subtle heat-shimmer distortion around the core, gossamer wisps of dark smoke curling upward through the glow, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/bf6677e2-683e-4620-b464-e5c96573f64d.png"
+    },
+    {
+      "label": "Queue",
+      "backgroundPrompt": "Abstract digital art of stacked translucent panels of deep smoked glass in layered dark espresso and charcoal tones arranged in a clean receding grid perspective, each layer catching a hairline of cool silver-amber light along its top edge, creating rhythmic bands of subtle glow against dense black shadows between layers, soft glass morphism sheen on surfaces, upper region extremely dark and uncluttered, cool blue-gray ambient fill on the deepest background plane contrasting the warm brown foreground layers, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/313ca626-3544-48e2-bef6-c5a3416125f4.png"
+    },
+    {
+      "label": "Your Library",
+      "backgroundPrompt": "Abstract digital art of a vast constellation of tiny warm amber and burnished gold orbs scattered densely across a deep roasted-black expanse, connected by ultra-fine luminous threads of copper light forming a soft organic web, a gentle diffused amber glow pooling warmly in the lower-center of the frame like embers, the upper 30% open dark sky with only sparse isolated dots and deep shadow, subtle vignette of dark espresso brown pressing in from all corners, 8K quality, ultra smooth gradients, premium feel, no text, no letters, no UI elements, no device mockups",
+      "backgroundUrl": "https://r2-pub.rork.com/app-store-screenshots/77ba8596-0a06-4e02-a046-573787bf6c63.png"
+    }
+  ],
+  "headlines": {
+    "en": {
+      "Authentication": "Your Music<br>Awaits",
+      "Home Feed": "Made For You",
+      "Search": "Find Anything",
+      "Full Player": "Pure Playback",
+      "Queue": "Your Queue",
+      "Your Library": "Your Library"
+    }
+  }
+}

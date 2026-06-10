@@ -1,0 +1,74 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: List available Xcode versions
+        run: ls /Applications/ | grep Xcode || true
+
+      - name: Select Xcode
+        run: |
+          # Try Xcode 26 variants first (for Liquid Glass / .glassEffect support), then fall back
+          for xcode in Xcode_26.4 Xcode_26.3 Xcode_26.2 Xcode_26.1 Xcode_26.0 Xcode_26 Xcode_16.4 Xcode_16.3 Xcode_16.2; do
+            if [ -d "/Applications/${xcode}.app" ]; then
+              sudo xcode-select -s "/Applications/${xcode}.app/Contents/Developer"
+              echo "Selected ${xcode}"
+              break
+            fi
+          done
+          xcodebuild -version
+          swift -version
+          xcode-select -p
+
+      - name: Build Archive
+        run: |
+          mkdir -p build
+          cd ios-there-music
+          xcodebuild archive \
+            -project Monk.xcodeproj \
+            -scheme Monk \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ../build/Monk.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ENABLE_BITCODE=NO \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=26.0 \
+            SWIFT_VERSION=5.0 \
+            2>&1 | tee ../build/xcodebuild-archive.log || true
+          # Check if archive was created
+          ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || { echo "ERROR: Archive not found"; exit 1; }
+
+      - name: Create IPA from Archive
+        run: |
+          mkdir -p build/Payload
+          cp -r build/Monk.xcarchive/Products/Applications/Monk.app build/Payload/Monk.app
+          cd build
+          zip -r ../Monk.ipa Payload/
+          cd ..
+          ls -la Monk.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Monk-IPA
+          path: Monk.ipa
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build/xcodebuild-archive.log
