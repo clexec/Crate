@@ -32,26 +32,34 @@ jobs:
         run: |
           cd ios-there-music
           
-          # Copy YMAPI sources into Monk/Services/YMAPI/
+          # Copy YMAPI sources into Monk/Services/YMAPI/ with prefix to avoid name collisions
           mkdir -p Monk/Services/YMAPI
-          cp Packages/YM-API/Sources/YMAPI/*.swift Monk/Services/YMAPI/ 2>/dev/null || true
-          # YMAPI has subdirectories
-          for dir in Packages/YM-API/Sources/YMAPI/*/; do
-            subdir=$(basename "$dir")
-            mkdir -p "Monk/Services/YMAPI/$subdir"
-            cp "$dir"*.swift "Monk/Services/YMAPI/$subdir/" 2>/dev/null || true
+          find Packages/YM-API/Sources/YMAPI -name "*.swift" -not -path "*/Tests/*" | while read f; do
+            # Get relative path from Sources/YMAPI/
+            relpath="${f#Packages/YM-API/Sources/YMAPI/}"
+            reldir=$(dirname "$relpath")
+            base=$(basename "$relpath" .swift)
+            # Prefix with YM_ to avoid collisions with Monk's own files (e.g. User.swift, Track.swift)
+            newname="YM_${base}.swift"
+            mkdir -p "Monk/Services/YMAPI/$reldir"
+            cp "$f" "Monk/Services/YMAPI/$reldir/$newname"
+            # Fix internal references: rename class/struct/enum declarations
+            sed -i '' "s/class ${base}/class YM_${base}/g; s/struct ${base}/struct YM_${base}/g; s/enum ${base}/enum YM_${base}/g; s/protocol ${base}/protocol YM_${base}/g; s/typealias ${base}/typealias YM_${base}/g" "Monk/Services/YMAPI/$reldir/$newname" 2>/dev/null || true
           done
           
-          # Copy YouTubeKit sources into Monk/Services/YouTubeKit/
+          # Copy YouTubeKit sources into Monk/Services/YouTubeKit/ with prefix
           mkdir -p Monk/Services/YouTubeKit
-          cp Packages/YouTubeKit/Sources/YouTubeKit/*.swift Monk/Services/YouTubeKit/ 2>/dev/null || true
-          # YouTubeKit has subdirectories
-          for dir in Packages/YouTubeKit/Sources/YouTubeKit/*/; do
-            subdir=$(basename "$dir")
-            mkdir -p "Monk/Services/YouTubeKit/$subdir"
-            cp "$dir"*.swift "Monk/Services/YouTubeKit/$subdir/" 2>/dev/null || true
+          find Packages/YouTubeKit/Sources/YouTubeKit -name "*.swift" -not -path "*/Tests/*" | while read f; do
+            relpath="${f#Packages/YouTubeKit/Sources/YouTubeKit/}"
+            reldir=$(dirname "$relpath")
+            base=$(basename "$relpath" .swift)
+            newname="YT_${base}.swift"
+            mkdir -p "Monk/Services/YouTubeKit/$reldir"
+            cp "$f" "Monk/Services/YouTubeKit/$reldir/$newname"
+            sed -i '' "s/class ${base}/class YT_${base}/g; s/struct ${base}/struct YT_${base}/g; s/enum ${base}/enum YT_${base}/g; s/protocol ${base}/protocol YT_${base}/g; s/typealias ${base}/typealias YT_${base}/g" "Monk/Services/YouTubeKit/$reldir/$newname" 2>/dev/null || true
           done
-          # Copy JavaScript resource bundle
+          
+          # Copy JavaScript resource bundle for YouTubeKit
           mkdir -p Monk/Services/YouTubeKit/JavaScript
           cp Packages/YouTubeKit/Sources/YouTubeKit/JavaScript/*.js Monk/Services/YouTubeKit/JavaScript/ 2>/dev/null || true
           
@@ -59,14 +67,17 @@ jobs:
           find Monk/Services/YMAPI -name "*.swift" | wc -l | xargs echo "YMAPI Swift files:"
           find Monk/Services/YouTubeKit -name "*.swift" | wc -l | xargs echo "YouTubeKit Swift files:"
           
-          # Remove 'import YMAPI' and 'import YouTubeKit' from all source files
-          # since they're now compiled in the same target
+          # Remove 'import YMAPI' and 'import YouTubeKit' from all Monk source files
           find Monk -name "*.swift" -exec sed -i '' 's/^import YMAPI$/\/\/ import YMAPI (inlined)/g' {} \;
           find Monk -name "*.swift" -exec sed -i '' 's/^import YouTubeKit$/\/\/ import YouTubeKit (inlined)/g' {} \;
           
           echo "=== Verifying no remaining imports ==="
-          grep -r "^import YMAPI$" Monk/ || echo "No YMAPI imports remaining"
-          grep -r "^import YouTubeKit$" Monk/ || echo "No YouTubeKit imports remaining"
+          grep -rn "^import YMAPI$" Monk/ || echo "No YMAPI imports remaining"
+          grep -rn "^import YouTubeKit$" Monk/ || echo "No YouTubeKit imports remaining"
+          
+          # Check for duplicate filenames
+          echo "=== Checking for duplicate filenames ==="
+          find Monk -name "*.swift" -exec basename {} \; | sort | uniq -d
 
       - name: Build Archive
         run: |
