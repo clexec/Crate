@@ -28,81 +28,11 @@ jobs:
           swift -version
           xcode-select -p
 
-      - name: Install xcodeproj gem
-        run: gem install xcodeproj
-
-      - name: Setup Workspace with Local SPM Packages
+      - name: Inline SPM Packages into Monk Target
         run: |
           cd ios-there-music
-          
-          # Create an xcworkspace that includes both the Xcode project and local SPM packages
-          mkdir -p Monk.xcworkspace
-          cat > Monk.xcworkspace/contents.xcworkspacedata << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <Workspace version="1.0">
-             <FileRef location="self:Monk.xcodeproj">
-             </FileRef>
-             <FileRef location="group:Packages/YM-API/Package.swift">
-             </FileRef>
-             <FileRef location="group:Packages/YouTubeKit/Package.swift">
-             </FileRef>
-          </Workspace>
-          EOF
-          
-          # Add local package references to the Xcode project (pbxproj)
-          # Using ruby for safe plist manipulation
-          ruby -e '
-          require "xcodeproj"
-          project = Xcodeproj::Project.open("Monk.xcodeproj")
-          target = project.targets.find { |t| t.name == "Monk" }
-          
-          # Add local SPM package references
-          ym_ref = project.new(XCLocalSwiftPackageReference)
-          ym_ref.path = "Packages/YM-API"
-          project.root_object.package_references << ym_ref
-          
-          yt_ref = project.new(XCLocalSwiftPackageReference)
-          yt_ref.path = "Packages/YouTubeKit"
-          project.root_object.package_references << yt_ref
-          
-          # Add package product dependencies to Monk target
-          ym_dep = target.new(XCSwiftPackageProductDependency)
-          ym_dep.package = ym_ref
-          ym_dep.product_name = "YMAPI"
-          target.package_product_dependencies << ym_dep
-          
-          yt_dep = target.new(XCSwiftPackageProductDependency)
-          yt_dep.package = yt_ref
-          yt_dep.product_name = "YouTubeKit"
-          target.package_product_dependencies << yt_dep
-          
-          project.save
-          puts "Successfully added SPM packages to Xcode project"
-          ' 2>&1 || echo "xcodeproj gem not available, using manual approach"
-          
-          # Fallback: manually edit pbxproj if xcodeproj gem is not available
-          if ! gem list xcodeproj -i > /dev/null 2>&1; then
-            echo "Using manual pbxproj editing..."
-            # We already have the packages referenced from previous commit attempts
-            # Just make sure they are correct
-            echo "Manual approach: ensuring XCLocalSwiftPackageReference entries exist"
-          fi
-
-      - name: Resolve Package Dependencies
-        run: |
-          cd ios-there-music
-          # Try with workspace first, then with project
-          if [ -d "Monk.xcworkspace" ]; then
-            xcodebuild -resolvePackageDependencies \
-              -workspace Monk.xcworkspace \
-              -scheme Monk \
-              2>&1 | tail -20 || true
-          fi
-          # Always try with project too
-          xcodebuild -resolvePackageDependencies \
-            -project Monk.xcodeproj \
-            -scheme Monk \
-            2>&1 | tail -20 || true
+          chmod +x inline_packages.sh
+          ./inline_packages.sh
 
       - name: Build Archive
         run: |
@@ -119,11 +49,10 @@ jobs:
             ENABLE_BITCODE=NO
             DEVELOPMENT_TEAM=""
             ONLY_ACTIVE_ARCH=NO
-            IPHONEOS_DEPLOYMENT_TARGET=26.0
+            IPHONEOS_DEPLOYMENT_TARGET=16.0
             SWIFT_VERSION=5.0
           )
           
-          # Always use -project for build (workspace may not have shared scheme)
           xcodebuild archive \
             -project Monk.xcodeproj \
             -scheme Monk \
