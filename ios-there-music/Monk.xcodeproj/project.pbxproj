@@ -112,8 +112,6 @@
                         );
                         name = Monk;
                         packageProductDependencies = (
-                                AABB00032E9EAD3100EA8BCF /* YMAPI */,
-                                AABB00042E9EAD3100EA8BCF /* YouTubeKit */,
                         );
                         productName = Monk;
                         productReference = 105FC57A2E9EAD3100EA8BCF /* Monk.app */;
@@ -202,10 +200,6 @@
                         productRefGroup = 105FC57B2E9EAD3100EA8BCF /* Products */;
                         projectDirPath = "";
                         projectRoot = "";
-                        packageReferences = (
-                                AABB00012E9EAD3100EA8BCF /* XCLocalSwiftPackageReference "YMAPI" */,
-                                AABB00022E9EAD3100EA8BCF /* XCLocalSwiftPackageReference "YouTubeKit" */,
-                        );
                         targets = (
                                 105FC5792E9EAD3100EA8BCF /* Monk */,
                                 105FC5882E9EAD3200EA8BCF /* MonkTests */,
@@ -274,30 +268,6 @@
                         targetProxy = 105FC5942E9EAD3200EA8BCF /* PBXContainerItemProxy */;
                 };
 /* End PBXTargetDependency section */
-
-/* Begin XCLocalSwiftPackageReference section */
-                AABB00012E9EAD3100EA8BCF /* YMAPI */ = {
-                        isa = XCLocalSwiftPackageReference;
-                        path = Packages/YM-API;
-                };
-                AABB00022E9EAD3100EA8BCF /* YouTubeKit */ = {
-                        isa = XCLocalSwiftPackageReference;
-                        path = Packages/YouTubeKit;
-                };
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-                AABB00032E9EAD3100EA8BCF /* YMAPI */ = {
-                        isa = XCSwiftPackageProductDependency;
-                        package = AABB00012E9EAD3100EA8BCF /* YMAPI */;
-                        productName = YMAPI;
-                };
-                AABB00042E9EAD3100EA8BCF /* YouTubeKit */ = {
-                        isa = XCSwiftPackageProductDependency;
-                        package = AABB00022E9EAD3100EA8BCF /* YouTubeKit */;
-                        productName = YouTubeKit;
-                };
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
                 105FC59B2E9EAD3200EA8BCF /* Debug */ = {
