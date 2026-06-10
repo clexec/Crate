@@ -28,13 +28,17 @@ jobs:
           swift -version
           xcode-select -p
 
-      - name: Generate Workspace with SPM Packages
+      - name: Generate Workspace with SPM
         run: |
           cd ios-there-music
           
-          # Create a Package.swift that wraps everything as a single SPM workspace
+          # Remove old Package.swift if exists
+          rm -f Package.swift
+          
+          # Create Package.swift that wraps everything as a single SPM package
+          # Use swift-tools-version:6.2 for iOS 26 support
           cat > Package.swift << 'EOF'
-          // swift-tools-version:5.10
+          // swift-tools-version:6.2
           import PackageDescription
           let package = Package(
               name: "CrateMusic",
@@ -44,7 +48,7 @@ jobs:
               ],
               dependencies: [],
               targets: [
-                  .target(
+                  .executableTarget(
                       name: "MonkApp",
                       dependencies: ["YMAPI", "YouTubeKit"],
                       path: "Monk",
@@ -72,74 +76,91 @@ jobs:
           EOF
           
           echo "Generated Package.swift"
-          cat Package.swift
 
-      - name: Build with SPM
+      - name: Build App with SPM
         run: |
           cd ios-there-music
-          
-          # Build the app using SPM
           mkdir -p ../build
           
-          # First build the libraries
-          echo "=== Building YMAPI ==="
-          swift build --target YMAPI -c release \
-            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
-            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 || true
-          
-          echo "=== Building YouTubeKit ==="
-          swift build --target YouTubeKit -c release \
-            -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
-            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 || true
-          
-          echo "=== Building full package ==="
+          # Build using swift build with iOS SDK
           swift build -c release \
+            --product MonkApp \
             -Xswiftc -sdk -Xswiftc $(xcrun --sdk iphoneos --show-sdk-path) \
-            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 2>&1 | tee ../build/spm-build.log || true
+            -Xswiftc -target -Xswiftc arm64-apple-ios26.0 \
+            2>&1 | tee ../build/spm-build.log
+            
+          # Check build result
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "SPM build failed"
+            exit 1
+          fi
+          
+          echo "SPM build succeeded!"
 
-      - name: Build Archive via Xcode
+      - name: Create IPA from SPM Build
         run: |
           cd ios-there-music
-          mkdir -p ../build
           
-          # Try using xcodebuild with the generated Package.swift
-          xcodebuild archive \
-            -project Monk.xcodeproj \
-            -scheme Monk \
-            -sdk iphoneos \
-            -configuration Release \
-            -archivePath ../build/Monk.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            ENABLE_BITCODE=NO \
-            DEVELOPMENT_TEAM="" \
-            ONLY_ACTIVE_ARCH=NO \
-            IPHONEOS_DEPLOYMENT_TARGET=26.0 \
-            SWIFT_VERSION=5.0 \
-            2>&1 | tee ../build/xcodebuild-archive.log || true
-          
-          ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || echo "Xcode archive failed, trying SPM approach..."
-
-      - name: Create IPA from Archive
-        run: |
-          if [ -d "build/Monk.xcarchive/Products/Applications/Monk.app" ]; then
-            mkdir -p build/Payload
-            cp -r build/Monk.xcarchive/Products/Applications/Monk.app build/Payload/Monk.app
-            cd build
-            zip -r ../Monk.ipa Payload/
-            cd ..
-            ls -la Monk.ipa
-            echo "IPA created successfully!"
-          else
-            echo "No archive found - IPA not created"
+          # Find the built executable
+          BUILD_PATH=".build/release/iphoneos"
+          if [ -d "$BUILD_PATH" ]; then
+            echo "Found build at $BUILD_PATH"
+            ls -la "$BUILD_PATH"
           fi
+          
+          # Create .app bundle structure
+          mkdir -p ../build/Monk.app
+          
+          # Copy executable if found
+          if [ -f ".build/release/MonkApp" ]; then
+            cp .build/release/MonkApp ../build/Monk.app/Monk
+            chmod +x ../build/Monk.app/Monk
+          fi
+          
+          # Copy assets
+          cp -r Monk/Assets.xcassets ../build/Monk.app/Assets.xcassets 2>/dev/null || true
+          
+          # Create Info.plist
+          cat > ../build/Monk.app/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>Monk</string>
+              <key>CFBundleIdentifier</key>
+              <string>app.mono.io</string>
+              <key>CFBundleName</key>
+              <string>Monk</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>MinimumOSVersion</key>
+              <string>26.0</string>
+          </dict>
+          </plist>
+          PLIST
+          
+          # Create IPA
+          mkdir -p ../build/Payload
+          cp -r ../build/Monk.app ../build/Payload/Monk.app
+          cd ../build
+          zip -r ../Monk.ipa Payload/
+          cd ..
+          ls -la Monk.ipa
 
-      - name: Upload Build Artifacts
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Monk-IPA
+          path: Monk.ipa
+
+      - name: Upload Build Log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: |
-            build/xcodebuild-archive.log
-            build/spm-build.log
+          name: build-log
+          path: build/spm-build.log
