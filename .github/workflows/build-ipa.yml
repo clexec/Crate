@@ -97,12 +97,12 @@ jobs:
               -workspace Monk.xcworkspace \
               -scheme Monk \
               2>&1 | tail -20 || true
-          else
-            xcodebuild -resolvePackageDependencies \
-              -project Monk.xcodeproj \
-              -scheme Monk \
-              2>&1 | tail -20 || true
           fi
+          # Always try with project too
+          xcodebuild -resolvePackageDependencies \
+            -project Monk.xcodeproj \
+            -scheme Monk \
+            2>&1 | tail -20 || true
 
       - name: Build Archive
         run: |
@@ -123,19 +123,12 @@ jobs:
             SWIFT_VERSION=5.0
           )
           
-          if [ -d "Monk.xcworkspace" ]; then
-            xcodebuild archive \
-              -workspace Monk.xcworkspace \
-              -scheme Monk \
-              "${CMD_ARGS[@]}" \
-              2>&1 | tee ../build/xcodebuild-archive.log || true
-          else
-            xcodebuild archive \
-              -project Monk.xcodeproj \
-              -scheme Monk \
-              "${CMD_ARGS[@]}" \
-              2>&1 | tee ../build/xcodebuild-archive.log || true
-          fi
+          # Always use -project for build (workspace may not have shared scheme)
+          xcodebuild archive \
+            -project Monk.xcodeproj \
+            -scheme Monk \
+            "${CMD_ARGS[@]}" \
+            2>&1 | tee ../build/xcodebuild-archive.log || true
           
           ls -la ../build/Monk.xcarchive/Products/Applications/ 2>/dev/null || { echo "ERROR: Archive not found"; exit 1; }
 
